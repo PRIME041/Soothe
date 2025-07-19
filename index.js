@@ -1,36 +1,35 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const { Configuration, OpenAIApi } = require("openai");
+const OpenAI = require("openai");
 
 const app = express();
 app.use(bodyParser.json());
 
-const openai = new OpenAIApi(new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
-}));
+});
 
 app.post("/webhook", async (req, res) => {
   const message = req.body.queryResult.queryText;
 
   try {
-    const response = await openai.createChatCompletion({
+    const chat = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: message }]
     });
 
-    const reply = response.data.choices[0].message.content;
+    const reply = chat.choices[0].message.content;
 
     res.json({
       fulfillmentText: reply
     });
   } catch (error) {
-    console.error(error.message);
+    console.error("GPT error:", error.message);
     res.json({
-      fulfillmentText: "😓 Sorry, I'm having trouble thinking right now."
+      fulfillmentText: "😓 Sorry, I couldn’t connect to ChatGPT."
     });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Webhook with ChatGPT running on port ${PORT}`));
-
+app.listen(PORT, () => console.log("✅ GPT Webhook running on port", PORT));
