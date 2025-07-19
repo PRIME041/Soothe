@@ -1,35 +1,37 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const OpenAI = require("openai");
+const axios = require("axios");
 
 const app = express();
 app.use(bodyParser.json());
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 app.post("/webhook", async (req, res) => {
-  const message = req.body.queryResult.queryText;
+  const userMessage = req.body.queryResult.queryText;
 
   try {
-    const chat = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: message }]
+    const response = await axios.post("https://openrouter.ai/api/v1/chat/completions", {
+      model: "openai/gpt-3.5-turbo", // or try "mistral/mixtral-8x7b"
+      messages: [
+        { role: "system", content: "You're a supportive mental wellness assistant." },
+        { role: "user", content: userMessage }
+      ]
+    }, {
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      }
     });
 
-    const reply = chat.choices[0].message.content;
+    const reply = response.data.choices[0].message.content;
 
-    res.json({
-      fulfillmentText: reply
-    });
-  } catch (error) {
-    console.error("GPT error:", error.message);
-    res.json({
-      fulfillmentText: "😓 Sorry, I couldn’t connect to ChatGPT."
-    });
+    res.json({ fulfillmentText: reply });
+  } catch (err) {
+    console.error("OpenRouter error:", err.message);
+    res.json({ fulfillmentText: "😓 Sorry, I couldn’t reach the assistant." });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("✅ GPT Webhook running on port", PORT));
+app.listen(PORT, () => console.log("✅ Webhook (OpenRouter) running on port", PORT));
